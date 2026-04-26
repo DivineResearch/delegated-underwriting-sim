@@ -96,8 +96,6 @@ $$
 
 At those times, aggregate credit is exactly $0$, so the system is still alive because $q = 0$. One additional default sends aggregate credit to $-1$, so the system is no longer alive. Thus the deterministic bound is tight.
 
-Larger lifetime scales, such as $\Omega(n^2)$, require stochastic assumptions about defaults and repayment pricing. From aggregate accounting alone, the worst-case guarantee is linear in the number of seeds.
-
 ## Setup
 
 ```bash

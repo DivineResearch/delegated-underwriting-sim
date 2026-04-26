@@ -1,34 +1,109 @@
 # Delegated Underwriting Simulations
 
-This repo is intentionally scalar. It validates the deterministic lifetime bound
-that follows from the aggregate-credit identity in delegated underwriting:
+This repo is a minimal simulation and validation harness for the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/). We derive a deterministic lifetime bound using only the write-up's aggregate-credit accounting identity.
 
-```text
-C_t = sum(seed base budgets) + sum(earned credit)
-```
+For this result, the simulation intentionally collapses that system to the one scalar quantity used in the proof: total aggregate credit. That makes the code small and directly aligned with the deterministic lifetime bound below.
 
-Delegation is not modeled because it only redistributes credit. The only modeled
-round events are:
+Let
 
-```text
-repayment: C <- C + earned_credit
-default:   C <- C - principal
-```
+$$
+C_t := \sum_u c_u(t)
+$$
 
-If every loan has principal at most `L` and the system is alive when `C_t >= q`,
-then the all-default path gives the deterministic guarantee:
+denote total system credit after $t$ completed loan rounds. The key accounting identity from the Sybil-resistance proof is
 
-```text
-T >= floor((C_0 - q) / L)
-```
+$$
+C_t = \sum_{s \in S} \widehat E_s + \sum_u G_u(t).
+$$
 
-With `n` seeds and uniform seed budget `B`, `C_0 = nB`, so the worst-case lower
-bound scales linearly in `n` for fixed `B`, `L`, and `q`.
+Thus delegation itself does not create credit; it only redistributes it. The only two events that change aggregate credit are repayment and default. A repayment increases $G_v$, and hence $C_t$, by the earned-credit increment. A default of principal $x_v$ decreases aggregate credit by exactly $x_v$.
+
+Assume every loan has principal at most $L$, and say the system is alive whenever
+
+$$
+C_t \ge q
+$$
+
+for some viability threshold $q \ge 0$. Since repayments only increase $C_t$, the worst case for lifetime is that every round defaults. Therefore, after $T$ rounds,
+
+$$
+C_T \ge C_0 - TL.
+$$
+
+Hence the system is guaranteed to remain alive through every
+
+$$
+T \le \left\lfloor \frac{C_0 - q}{L} \right\rfloor
+$$
+
+round. Equivalently, the deterministic lifetime is at least
+
+$$
+\left\lfloor \frac{C_0 - q}{L} \right\rfloor .
+$$
+
+If the system begins with no earned credit, then
+
+$$
+C_0 = \sum_{s \in S} \widehat E_s.
+$$
+
+If there are $n$ seeds, each with seed budget $B$, then
+
+$$
+C_0 = nB,
+$$
+
+so the guaranteed lifetime is at least
+
+$$
+\left\lfloor \frac{nB - q}{L} \right\rfloor .
+$$
+
+Thus, for constant $B$, $L$, and $q$, the worst-case lifetime lower bound is
+
+$$
+\Omega(n).
+$$
+
+## Simulation Check
+
+We also run a minimal simulation to check the bound. The simulation tracks only aggregate credit,
+
+$$
+C_t = C_0 + \text{repaid earned credit} - \text{defaulted principal},
+$$
+
+rather than the full sponsor forest, so it matches exactly the scalar quantity used in the proof.
+
+In the all-default path, it initializes $C_0 = nB$, subtracts $L$ each round, and checks when credit falls below $q$. The implemented adversarial bound is precisely
+
+$$
+\left\lfloor \frac{C_0 - q}{L} \right\rfloor .
+$$
+
+With $B = 2$, $L = 1$, and $q = 0$, the theorem predicts
+
+$$
+\left\lfloor \frac{nB - q}{L} \right\rfloor = 2n.
+$$
+
+The simulation returns
+
+$$
+n = 10 \mapsto 20, \qquad
+n = 20 \mapsto 40, \qquad
+n = 40 \mapsto 80.
+$$
+
+At those times, aggregate credit is exactly $0$, so the system is still alive because $q = 0$. One additional default sends aggregate credit to $-1$, so the system is no longer alive. Thus the deterministic bound is tight.
+
+Larger lifetime scales, such as $\Omega(n^2)$, require stochastic assumptions about defaults and repayment pricing. From aggregate accounting alone, the worst-case guarantee is linear in the number of seeds.
 
 ## Setup
 
 ```bash
-cd delegated_underwriting_sim
+cd /Users/diego/Projects/delegated_underwriting_sim
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e ".[test]"
@@ -40,14 +115,8 @@ pip install -e ".[test]"
 pytest
 ```
 
-## Validate The Bound
+## Run The Check
 
 ```bash
 delegated-underwriting-sim --n-values 10,20,40 --seed-budget 2 --max-principal 1 --threshold 0
-```
-
-To write a CSV:
-
-```bash
-delegated-underwriting-sim --output results/lifetime_scaling.csv
 ```

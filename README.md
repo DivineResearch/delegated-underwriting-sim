@@ -1,6 +1,6 @@
 # Delegated Underwriting Simulations
 
-This repo is a minimal simulation and validation harness for the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/).
+This repo contains a minimal simulation for studying worst-case lifetime bounds in the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/).
 
 Let
 

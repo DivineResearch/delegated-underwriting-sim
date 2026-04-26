@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "delegated-underwriting-simulations"
+version = "0.1.0"
+description = "Simulations for the delegated underwriting lending model."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+	"matplotlib>=3.9",
+	"numpy>=2.0",
+	"pandas>=2.2",
+]
+
+[project.optional-dependencies]
+test = [
+	"hypothesis>=6.100",
+	"pytest>=8.0",
+]
+
+[project.scripts]
+credit-lifetime-sim = "delegated_underwriting_simulations.experiments:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["delegated_underwriting_simulations"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -11,7 +11,7 @@ It is intentionally scalar and theorem-facing. It does not simulate the sponsor 
 ## Setup
 
 ```bash
-cd delegated_underwriting_simulations
+cd delegated_underwriting_sim
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e ".[test]"
@@ -26,7 +26,7 @@ pytest
 ## Run The Default Experiment
 
 ```bash
-delegated-underwriting-simulations --trials 5000 --output results/lifetime_scaling.csv
+delegated-underwriting-sim --trials 5000 --output results/lifetime_scaling.csv
 ```
 
 The output table includes empirical lifetime quantiles, the conservative high-probability theoretical bound, and normalized values for checking linear versus quadratic scaling.

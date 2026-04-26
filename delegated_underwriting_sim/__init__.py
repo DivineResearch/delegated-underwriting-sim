@@ -1,6 +1,6 @@
 """Simulations for the delegated underwriting lending model."""
 
-from delegated_underwriting_simulations.aggregate import (
+from delegated_underwriting_sim.aggregate import (
 	PathResult,
 	Round,
 	SimulationParams,
@@ -8,7 +8,7 @@ from delegated_underwriting_simulations.aggregate import (
 	simulate_many,
 	simulate_path,
 )
-from delegated_underwriting_simulations.bounds import (
+from delegated_underwriting_sim.bounds import (
 	adversarial_survival_bound,
 	deterministic_survival_bound,
 	risk_premium,

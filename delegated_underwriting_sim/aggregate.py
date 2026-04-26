@@ -9,7 +9,7 @@ from itertools import islice
 import numpy as np
 import pandas as pd
 
-from delegated_underwriting_simulations.bounds import adversarial_survival_bound, risk_premium, theoretical_bound
+from delegated_underwriting_sim.bounds import adversarial_survival_bound, risk_premium, theoretical_bound
 
 
 RngLike = np.random.Generator | int | None

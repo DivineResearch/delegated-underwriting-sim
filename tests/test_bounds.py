@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from delegated_underwriting_simulations import (
+from delegated_underwriting_sim import (
 	adversarial_survival_bound,
 	deterministic_survival_bound,
 	risk_premium,

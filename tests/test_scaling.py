@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from delegated_underwriting_simulations import simulate_many
+from delegated_underwriting_sim import simulate_many
 
 
 def test_simulate_many_returns_expected_scaling_columns() -> None:

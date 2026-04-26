@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "delegated-underwriting-simulations"
+name = "delegated-underwriting-sim"
 version = "0.1.0"
 description = "Simulations for the delegated underwriting lending model."
 readme = "README.md"
@@ -21,10 +21,10 @@ test = [
 ]
 
 [project.scripts]
-credit-lifetime-sim = "delegated_underwriting_simulations.experiments:main"
+credit-lifetime-sim = "delegated_underwriting_sim.experiments:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["delegated_underwriting_simulations"]
+packages = ["delegated_underwriting_sim"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

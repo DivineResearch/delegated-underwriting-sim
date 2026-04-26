@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from hypothesis import given, strategies as st
 
-from delegated_underwriting_simulations import Round, apply_rounds, risk_premium, simulate_path
+from delegated_underwriting_sim import Round, apply_rounds, risk_premium, simulate_path
 
 
 def test_apply_rounds_updates_credit_by_the_accounting_identity() -> None:

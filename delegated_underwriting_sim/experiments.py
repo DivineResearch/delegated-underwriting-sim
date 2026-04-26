@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Sequence
 
 import pandas as pd
 
-from delegated_underwriting_simulations.aggregate import simulate_many
+from delegated_underwriting_sim.aggregate import simulate_many
 
 if TYPE_CHECKING:
 	from matplotlib.figure import Figure

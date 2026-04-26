@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from delegated_underwriting_sim import lifetime_bound, uniform_seed_credit, uniform_seed_lifetime_bound
+from delegated_underwriting_lifetime import lifetime_bound, uniform_seed_credit, uniform_seed_lifetime_bound
 
 
 def test_lifetime_bound_matches_floor_formula() -> None:

@@ -1,6 +1,6 @@
-# Delegated Underwriting Simulations
+# Delegated Underwriting Lifetime
 
-This repo contains a minimal simulation for studying worst-case lifetime bounds in the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/).
+> We derive a deterministic lifetime bound for the system in [**Unsecured Lending via Delegated Underwriting](https://writing.divine.inc/delegated-underwriting/),** using only the write-up’s aggregate-credit accounting identity
 
 Let
 
@@ -101,7 +101,7 @@ Larger lifetime scales, such as $\Omega(n^2)$, require stochastic assumptions ab
 ## Setup
 
 ```bash
-cd /Users/diego/Projects/delegated_underwriting_sim
+cd /Users/diego/Projects/delegated-underwriting-lifetime
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e ".[test]"
@@ -116,5 +116,5 @@ pytest
 ## Run The Check
 
 ```bash
-delegated-underwriting-sim --n-values 10,20,40 --seed-budget 2 --max-principal 1 --threshold 0
+delegated-underwriting-lifetime --n-values 10,20,40 --seed-budget 2 --max-principal 1 --threshold 0
 ```

@@ -4,7 +4,7 @@ from itertools import product
 
 import pytest
 
-from delegated_underwriting_sim import Round, all_default_path, apply_rounds, lifetime_bound
+from delegated_underwriting_lifetime import Round, all_default_path, apply_rounds, lifetime_bound
 
 
 def test_apply_rounds_matches_the_aggregate_accounting_identity() -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from delegated_underwriting_sim.experiments import validation_rows
+from delegated_underwriting_lifetime.experiments import validation_rows
 
 
 def test_validation_rows_show_linear_worst_case_scaling() -> None:

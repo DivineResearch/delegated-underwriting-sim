@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "delegated-underwriting-sim"
+name = "delegated-underwriting-lifetime"
 version = "0.1.0"
 description = "Minimal aggregate-credit validation for delegated underwriting."
 readme = "README.md"
@@ -16,10 +16,10 @@ test = [
 ]
 
 [project.scripts]
-delegated-underwriting-sim = "delegated_underwriting_sim.experiments:main"
+delegated-underwriting-lifetime = "delegated_underwriting_lifetime.experiments:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["delegated_underwriting_sim"]
+packages = ["delegated_underwriting_lifetime"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

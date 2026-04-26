@@ -8,8 +8,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from collections.abc import Sequence
 
-from delegated_underwriting_sim.aggregate import all_default_path
-from delegated_underwriting_sim.bounds import lifetime_bound, uniform_seed_credit
+from delegated_underwriting_lifetime.aggregate import all_default_path
+from delegated_underwriting_lifetime.bounds import lifetime_bound, uniform_seed_credit
 
 DEFAULT_N_VALUES = (10, 20, 40, 80, 160, 320)
 

@@ -1,8 +1,6 @@
 # Delegated Underwriting Simulations
 
-This repo is a minimal simulation and validation harness for the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/). We derive a deterministic lifetime bound using only the write-up's aggregate-credit accounting identity.
-
-For this result, the simulation intentionally collapses that system to the one scalar quantity used in the proof: total aggregate credit. That makes the code small and directly aligned with the deterministic lifetime bound below.
+This repo is a minimal simulation and validation harness for the lending system described in [**Unsecured Lending via Delegated Underwriting**](https://writing.divine.inc/delegated-underwriting/).
 
 Let
 

@@ -1,72 +1,55 @@
 from __future__ import annotations
 
+from itertools import product
+
 import pytest
-from hypothesis import given, strategies as st
 
-from delegated_underwriting_sim import Round, apply_rounds, risk_premium, simulate_path
-
-
-def test_apply_rounds_updates_credit_by_the_accounting_identity() -> None:
-	rounds = [
-		Round(defaulted=False, principal=100.0, repayment_credit=7.0),
-		Round(defaulted=True, principal=50.0, repayment_credit=7.0),
-		Round(defaulted=False, principal=25.0, repayment_credit=3.0),
-	]
-
-	result = apply_rounds(initial_credit=1_000.0, rounds=rounds, stop_at_threshold=False)
-
-	assert result.final_credit == pytest.approx(960.0)
-	assert result.accounting_credit == pytest.approx(result.final_credit)
-	assert result.default_loss == pytest.approx(50.0)
-	assert result.minted_credit == pytest.approx(10.0)
+from delegated_underwriting_sim import Round, all_default_path, apply_rounds, lifetime_bound
 
 
-@given(
-	initial_cents=st.integers(min_value=0, max_value=1_000_000),
-	round_specs=st.lists(
-		st.tuples(
-			st.booleans(),
-			st.integers(min_value=0, max_value=100_000),
-			st.integers(min_value=0, max_value=100_000),
-		),
-		max_size=100,
-	),
-)
-def test_accounting_identity_holds_for_generated_round_sequences(
-	initial_cents: int,
-	round_specs: list[tuple[bool, int, int]],
-) -> None:
-	initial_credit = initial_cents / 100.0
-	rounds = [
-		Round(defaulted=defaulted, principal=principal_cents / 100.0, repayment_credit=repayment_cents / 100.0)
-		for defaulted, principal_cents, repayment_cents in round_specs
-	]
+def test_apply_rounds_matches_the_aggregate_accounting_identity() -> None:
+    rounds = [
+        Round(principal=100.0, defaulted=False, earned_credit=7.0),
+        Round(principal=50.0, defaulted=True),
+        Round(principal=25.0, defaulted=False, earned_credit=3.0),
+    ]
 
-	result = apply_rounds(initial_credit=initial_credit, rounds=rounds, stop_at_threshold=False)
-	expected = initial_credit + sum(
-		-repayment_round.principal if repayment_round.defaulted else repayment_round.repayment_credit
-		for repayment_round in rounds
-	)
+    result = apply_rounds(initial_credit=1_000.0, rounds=rounds)
 
-	assert result.accounting_credit == pytest.approx(expected)
-	assert result.final_credit == pytest.approx(expected)
+    assert result.credits == pytest.approx((1_000.0, 1_007.0, 957.0, 960.0))
+    assert result.final_credit == pytest.approx(960.0)
+    assert result.accounting_credit == pytest.approx(result.final_credit)
+    assert result.default_loss == pytest.approx(50.0)
+    assert result.minted_credit == pytest.approx(10.0)
 
 
-def test_simulate_path_accepts_explicit_default_sequence() -> None:
-	principal = 10.0
-	default_prob = 0.2
-	premium = risk_premium(principal=principal, default_prob=default_prob)
+def test_all_default_path_is_the_worst_case_for_the_bound() -> None:
+    initial_credit = 10.0
+    threshold = 2.0
+    max_principal = 2.5
+    bound = lifetime_bound(initial_credit, threshold, max_principal)
 
-	result = simulate_path(
-		n=3,
-		seed_budget=10.0,
-		principal=principal,
-		default_prob=default_prob,
-		default_indicators=[False, True, False],
-		stop_at_threshold=False,
-	)
+    through_bound = all_default_path(initial_credit, threshold, max_principal, bound)
+    after_next_default = all_default_path(initial_credit, threshold, max_principal, bound + 1)
 
-	assert result.lifetime == 3
-	assert result.final_credit == pytest.approx(30.0 + premium - principal + premium)
-	assert result.accounting_credit == pytest.approx(result.final_credit)
+    assert bound == 3
+    assert through_bound.final_credit == pytest.approx(2.5)
+    assert through_bound.alive
+    assert after_next_default.final_credit == pytest.approx(0.0)
+    assert not after_next_default.alive
 
+
+def test_any_round_sequence_with_losses_bounded_by_l_remains_alive_through_bound() -> None:
+    initial_credit = 9.0
+    threshold = 3.0
+    max_principal = 2.0
+    bound = lifetime_bound(initial_credit, threshold, max_principal)
+
+    for default_pattern in product([False, True], repeat=bound):
+        rounds = [
+            Round(principal=max_principal, defaulted=defaulted, earned_credit=0.25)
+            for defaulted in default_pattern
+        ]
+        result = apply_rounds(initial_credit, rounds, threshold)
+
+        assert result.final_credit >= threshold

@@ -1,38 +1,25 @@
 from __future__ import annotations
 
-from delegated_underwriting_sim import simulate_many
+from delegated_underwriting_sim.experiments import validation_rows
 
 
-def test_simulate_many_returns_expected_scaling_columns() -> None:
-	results = simulate_many(
-		n_values=[4, 8],
-		trials=32,
-		seed_budget=1.0,
-		principal=1.0,
-		default_prob=0.05,
-		max_rounds=250,
-		seed=123,
-	)
+def test_validation_rows_show_linear_worst_case_scaling() -> None:
+    rows = validation_rows(n_values=[10, 20, 40], seed_budget=2.0, max_principal=1.0, threshold=0.0)
 
-	assert list(results["n"]) == [4, 8]
-	assert set(
-		[
-			"mean_lifetime",
-			"p10_lifetime",
-			"p01_lifetime",
-			"theoretical_bound",
-			"adversarial_survival_bound",
-			"p01_over_n2",
-			"adversarial_over_n",
-		]
-	).issubset(results.columns)
-	assert (results["trials"] == 32).all()
-	assert (results["p01_lifetime"] >= results["theoretical_bound"]).all()
+    assert [row.lifetime_bound for row in rows] == [20, 40, 80]
+    assert [row.bound_over_n for row in rows] == [2.0, 2.0, 2.0]
+    assert all(row.alive_after_bound for row in rows)
+    assert not any(row.alive_after_next_default for row in rows)
 
 
-def test_simulate_many_is_reproducible_with_a_seed() -> None:
-	first = simulate_many(n_values=[4], trials=16, max_rounds=100, seed=7)
-	second = simulate_many(n_values=[4], trials=16, max_rounds=100, seed=7)
+def test_validation_rows_use_threshold_in_the_formula() -> None:
+    rows = validation_rows(n_values=[4], seed_budget=10.0, max_principal=3.0, threshold=7.0)
 
-	assert first.equals(second)
+    row = rows[0]
 
+    assert row.initial_credit == 40.0
+    assert row.lifetime_bound == 11
+    assert row.credit_after_bound == 7.0
+    assert row.alive_after_bound
+    assert row.credit_after_next_default == 4.0
+    assert not row.alive_after_next_default

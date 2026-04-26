@@ -1,30 +1,25 @@
-"""Simulations for the delegated underwriting lending model."""
+"""Minimal aggregate-credit validation for delegated underwriting."""
 
 from delegated_underwriting_sim.aggregate import (
-	PathResult,
-	Round,
-	SimulationParams,
-	apply_rounds,
-	simulate_many,
-	simulate_path,
+    CreditPath,
+    Round,
+    all_default_path,
+    all_default_rounds,
+    apply_rounds,
 )
 from delegated_underwriting_sim.bounds import (
-	adversarial_survival_bound,
-	deterministic_survival_bound,
-	risk_premium,
-	theoretical_bound,
+    lifetime_bound,
+    uniform_seed_credit,
+    uniform_seed_lifetime_bound,
 )
 
 __all__ = [
-	"PathResult",
-	"Round",
-	"SimulationParams",
-	"adversarial_survival_bound",
-	"apply_rounds",
-	"deterministic_survival_bound",
-	"risk_premium",
-	"simulate_many",
-	"simulate_path",
-	"theoretical_bound",
+    "CreditPath",
+    "Round",
+    "all_default_path",
+    "all_default_rounds",
+    "apply_rounds",
+    "lifetime_bound",
+    "uniform_seed_credit",
+    "uniform_seed_lifetime_bound",
 ]
-

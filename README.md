@@ -1,12 +1,29 @@
 # Delegated Underwriting Simulations
 
-The model tracks total system credit:
+This repo is intentionally scalar. It validates the deterministic lifetime bound
+that follows from the aggregate-credit identity in delegated underwriting:
 
 ```text
-C_t = C_0 + repaid earned credit - defaulted principal
+C_t = sum(seed base budgets) + sum(earned credit)
 ```
 
-It is intentionally scalar and theorem-facing. It does not simulate the sponsor forest, behavioral agents, or overlapping loan maturities yet.
+Delegation is not modeled because it only redistributes credit. The only modeled
+round events are:
+
+```text
+repayment: C <- C + earned_credit
+default:   C <- C - principal
+```
+
+If every loan has principal at most `L` and the system is alive when `C_t >= q`,
+then the all-default path gives the deterministic guarantee:
+
+```text
+T >= floor((C_0 - q) / L)
+```
+
+With `n` seeds and uniform seed budget `B`, `C_0 = nB`, so the worst-case lower
+bound scales linearly in `n` for fixed `B`, `L`, and `q`.
 
 ## Setup
 
@@ -17,17 +34,20 @@ python3 -m venv .venv
 pip install -e ".[test]"
 ```
 
-## Run Tests
+## Test
 
 ```bash
 pytest
 ```
 
-## Run The Default Experiment
+## Validate The Bound
 
 ```bash
-delegated-underwriting-sim --trials 5000 --output results/lifetime_scaling.csv
+delegated-underwriting-sim --n-values 10,20,40 --seed-budget 2 --max-principal 1 --threshold 0
 ```
 
-The output table includes empirical lifetime quantiles, the conservative high-probability theoretical bound, and normalized values for checking linear versus quadratic scaling.
+To write a CSV:
 
+```bash
+delegated-underwriting-sim --output results/lifetime_scaling.csv
+```

@@ -1,349 +1,119 @@
-"""Aggregate-credit simulation for protocol lifetime experiments."""
+"""Scalar aggregate-credit accounting for delegated underwriting."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
-from itertools import islice
-
-import numpy as np
-import pandas as pd
-
-from delegated_underwriting_sim.bounds import adversarial_survival_bound, risk_premium, theoretical_bound
-
-
-RngLike = np.random.Generator | int | None
 
 
 @dataclass(frozen=True)
 class Round:
-	"""One completed lending round in the aggregate-credit process."""
+    """One completed loan round.
 
-	defaulted: bool
-	principal: float
-	repayment_credit: float
+    A default burns principal from aggregate credit. A repayment mints the
+    earned-credit increment. Delegation is intentionally absent because it only
+    redistributes credit under the write-up's accounting identity.
+    """
 
-	def __post_init__(self) -> None:
-		if self.principal < 0:
-			raise ValueError("principal must be non-negative")
+    principal: float
+    defaulted: bool
+    earned_credit: float = 0.0
 
-		if self.repayment_credit < 0:
-			raise ValueError("repayment_credit must be non-negative")
+    def __post_init__(self) -> None:
+        if self.principal < 0:
+            raise ValueError("principal must be non-negative")
 
+        if self.earned_credit < 0:
+            raise ValueError("earned_credit must be non-negative")
 
-@dataclass(frozen=True)
-class SimulationParams:
-	"""Parameters for a fixed-size aggregate-credit lifetime simulation."""
+    @property
+    def credit_delta(self) -> float:
+        """Return this round's aggregate-credit change."""
 
-	n: int
-	seed_budget: float = 1.0
-	principal: float = 1.0
-	default_prob: float = 0.05
-	threshold: float | None = None
-	max_rounds: int = 10_000_000
-	risk_margin: float = 0.0
+        if self.defaulted:
+            return -self.principal
 
-	def __post_init__(self) -> None:
-		if self.n <= 0:
-			raise ValueError("n must be positive")
-
-		if self.seed_budget <= 0:
-			raise ValueError("seed_budget must be positive")
-
-		if self.principal <= 0:
-			raise ValueError("principal must be positive")
-
-		if self.default_prob < 0 or self.default_prob >= 1:
-			raise ValueError("default_prob must satisfy 0 <= default_prob < 1")
-
-		if self.max_rounds < 0:
-			raise ValueError("max_rounds must be non-negative")
-
-		if self.risk_margin < -1:
-			raise ValueError("risk_margin must be greater than or equal to -1")
-
-		if self.threshold is not None and self.threshold < 0:
-			raise ValueError("threshold must be non-negative")
-
-	@property
-	def initial_credit(self) -> float:
-		return self.n * self.seed_budget
-
-	@property
-	def resolved_threshold(self) -> float:
-		return self.principal if self.threshold is None else self.threshold
-
-	@property
-	def repayment_credit(self) -> float:
-		return risk_premium(
-			principal=self.principal,
-			default_prob=self.default_prob,
-			risk_margin=self.risk_margin,
-		)
+        return self.earned_credit
 
 
 @dataclass(frozen=True)
-class PathResult:
-	"""Result of applying a finite sequence of lending rounds."""
+class CreditPath:
+    """Aggregate-credit path after applying completed loan rounds."""
 
-	initial_credit: float
-	threshold: float
-	credits: np.ndarray
-	defaulted: np.ndarray
-	principals: np.ndarray
-	repayment_credits: np.ndarray
-	stopped_by: str
+    initial_credit: float
+    threshold: float
+    rounds: tuple[Round, ...]
+    credits: tuple[float, ...]
 
-	@property
-	def lifetime(self) -> int:
-		"""Completed rounds in this path."""
+    @property
+    def lifetime(self) -> int:
+        """Number of completed rounds in the path."""
 
-		return int(self.defaulted.size)
+        return len(self.rounds)
 
-	@property
-	def final_credit(self) -> float:
-		return float(self.credits[-1])
+    @property
+    def final_credit(self) -> float:
+        return self.credits[-1]
 
-	@property
-	def default_loss(self) -> float:
-		return float(self.principals[self.defaulted].sum())
+    @property
+    def alive(self) -> bool:
+        return self.final_credit >= self.threshold
 
-	@property
-	def minted_credit(self) -> float:
-		return float(self.repayment_credits[~self.defaulted].sum())
+    @property
+    def default_loss(self) -> float:
+        return sum(round.principal for round in self.rounds if round.defaulted)
 
-	@property
-	def accounting_credit(self) -> float:
-		"""Credit reconstructed from the theorem's aggregate accounting identity."""
+    @property
+    def minted_credit(self) -> float:
+        return sum(round.earned_credit for round in self.rounds if not round.defaulted)
 
-		return self.initial_credit + self.minted_credit - self.default_loss
+    @property
+    def accounting_credit(self) -> float:
+        """Reconstruct final credit from ``C_0 + minted credit - defaults``."""
 
-
-def _coerce_rng(rng: RngLike) -> np.random.Generator:
-	if isinstance(rng, np.random.Generator):
-		return rng
-
-	return np.random.default_rng(rng)
+        return self.initial_credit + self.minted_credit - self.default_loss
 
 
-def apply_rounds(
-	initial_credit: float,
-	rounds: Iterable[Round],
-	threshold: float = 0.0,
-	stop_at_threshold: bool = True,
-) -> PathResult:
-	"""Apply explicit rounds and return the aggregate-credit path."""
+def apply_rounds(initial_credit: float, rounds: Iterable[Round], threshold: float = 0.0) -> CreditPath:
+    """Apply completed rounds to the scalar aggregate-credit process."""
 
-	if initial_credit < 0:
-		raise ValueError("initial_credit must be non-negative")
+    if initial_credit < 0:
+        raise ValueError("initial_credit must be non-negative")
 
-	if threshold < 0:
-		raise ValueError("threshold must be non-negative")
+    if threshold < 0:
+        raise ValueError("threshold must be non-negative")
 
-	credit = float(initial_credit)
-	credits = [credit]
-	defaulted: list[bool] = []
-	principals: list[float] = []
-	repayment_credits: list[float] = []
-	stopped_by = "rounds"
+    credit = float(initial_credit)
+    materialized_rounds: list[Round] = []
+    credits = [credit]
 
-	if stop_at_threshold and credit < threshold:
-		return PathResult(
-			initial_credit=float(initial_credit),
-			threshold=float(threshold),
-			credits=np.array(credits, dtype=float),
-			defaulted=np.array(defaulted, dtype=bool),
-			principals=np.array(principals, dtype=float),
-			repayment_credits=np.array(repayment_credits, dtype=float),
-			stopped_by="threshold",
-		)
+    for round in rounds:
+        credit += round.credit_delta
+        materialized_rounds.append(round)
+        credits.append(credit)
 
-	for lending_round in rounds:
-		if lending_round.defaulted:
-			credit -= lending_round.principal
-		else:
-			credit += lending_round.repayment_credit
-
-		credits.append(credit)
-		defaulted.append(lending_round.defaulted)
-		principals.append(lending_round.principal)
-		repayment_credits.append(lending_round.repayment_credit)
-
-		if stop_at_threshold and credit < threshold:
-			stopped_by = "threshold"
-			break
-
-	return PathResult(
-		initial_credit=float(initial_credit),
-		threshold=float(threshold),
-		credits=np.array(credits, dtype=float),
-		defaulted=np.array(defaulted, dtype=bool),
-		principals=np.array(principals, dtype=float),
-		repayment_credits=np.array(repayment_credits, dtype=float),
-		stopped_by=stopped_by,
-	)
+    return CreditPath(
+        initial_credit=float(initial_credit),
+        threshold=float(threshold),
+        rounds=tuple(materialized_rounds),
+        credits=tuple(credits),
+    )
 
 
-def simulate_path(
-	n: int,
-	seed_budget: float = 1.0,
-	principal: float = 1.0,
-	default_prob: float = 0.05,
-	threshold: float | None = None,
-	max_rounds: int = 10_000_000,
-	risk_margin: float = 0.0,
-	rng: RngLike = None,
-	default_indicators: Iterable[bool] | None = None,
-	stop_at_threshold: bool = True,
-) -> PathResult:
-	"""Simulate one aggregate-credit path.
+def all_default_rounds(count: int, principal: float) -> tuple[Round, ...]:
+    """Return ``count`` worst-case rounds, each defaulting for ``principal``."""
 
-	When `default_indicators` is provided, `True` means default and `False`
-	means repayment. Otherwise the function draws defaults from `default_prob`.
-	"""
+    if count < 0:
+        raise ValueError("count must be non-negative")
 
-	params = SimulationParams(
-		n=n,
-		seed_budget=seed_budget,
-		principal=principal,
-		default_prob=default_prob,
-		threshold=threshold,
-		max_rounds=max_rounds,
-		risk_margin=risk_margin,
-	)
-
-	premium = params.repayment_credit
-
-	if default_indicators is None:
-		generator = _coerce_rng(rng)
-
-		def generated_rounds() -> Iterable[Round]:
-			for _ in range(params.max_rounds):
-				yield Round(
-					defaulted=bool(generator.random() < params.default_prob),
-					principal=params.principal,
-					repayment_credit=premium,
-				)
-
-		rounds = generated_rounds()
-	else:
-		rounds = (
-			Round(defaulted=bool(defaulted), principal=params.principal, repayment_credit=premium)
-			for defaulted in islice(default_indicators, params.max_rounds)
-		)
-
-	return apply_rounds(
-		initial_credit=params.initial_credit,
-		rounds=rounds,
-		threshold=params.resolved_threshold,
-		stop_at_threshold=stop_at_threshold,
-	)
+    return tuple(Round(principal=principal, defaulted=True) for _ in range(count))
 
 
-def _simulate_lifetimes_vectorized(
-	params: SimulationParams,
-	trials: int,
-	rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray]:
-	if trials <= 0:
-		raise ValueError("trials must be positive")
+def all_default_path(initial_credit: float, threshold: float, max_principal: float, rounds: int) -> CreditPath:
+    """Apply the adversarial path used by the deterministic bound."""
 
-	threshold = params.resolved_threshold
-	credits = np.full(trials, params.initial_credit, dtype=float)
-	lifetimes = np.zeros(trials, dtype=np.int64)
-	alive = credits >= threshold
-	premium = params.repayment_credit
-
-	if not alive.any():
-		return lifetimes, np.zeros(trials, dtype=bool)
-
-	for round_number in range(1, params.max_rounds + 1):
-		alive_indices = np.flatnonzero(alive)
-		defaults = rng.random(alive_indices.size) < params.default_prob
-		credits[alive_indices] += np.where(defaults, -params.principal, premium)
-
-		newly_dead_mask = credits[alive_indices] < threshold
-
-		if newly_dead_mask.any():
-			newly_dead = alive_indices[newly_dead_mask]
-			lifetimes[newly_dead] = round_number
-			alive[newly_dead] = False
-
-		if not alive.any():
-			break
-
-	lifetimes[alive] = params.max_rounds
-
-	return lifetimes, alive
-
-
-def simulate_many(
-	n_values: Sequence[int],
-	trials: int = 10_000,
-	seed_budget: float = 1.0,
-	principal: float = 1.0,
-	default_prob: float = 0.05,
-	threshold: float | None = None,
-	max_rounds: int = 10_000_000,
-	risk_margin: float = 0.0,
-	epsilon: float = 0.01,
-	seed: int | None = 0,
-) -> pd.DataFrame:
-	"""Run Monte Carlo lifetime trials for multiple seed counts."""
-
-	if not n_values:
-		raise ValueError("n_values must not be empty")
-
-	rng = np.random.default_rng(seed)
-	rows = []
-
-	for n in n_values:
-		params = SimulationParams(
-			n=n,
-			seed_budget=seed_budget,
-			principal=principal,
-			default_prob=default_prob,
-			threshold=threshold,
-			max_rounds=max_rounds,
-			risk_margin=risk_margin,
-		)
-		lifetimes, censored = _simulate_lifetimes_vectorized(params=params, trials=trials, rng=rng)
-		p01 = float(np.quantile(lifetimes, 0.01))
-		p10 = float(np.quantile(lifetimes, 0.10))
-		median = float(np.median(lifetimes))
-		bound = theoretical_bound(
-			n=n,
-			seed_budget=seed_budget,
-			principal=principal,
-			default_prob=default_prob,
-			threshold=threshold,
-			epsilon=epsilon,
-			risk_margin=risk_margin,
-		)
-		adversarial_bound = adversarial_survival_bound(
-			n=n,
-			seed_budget=seed_budget,
-			principal=principal,
-			threshold=threshold,
-		)
-
-		rows.append(
-			{
-				"n": n,
-				"trials": trials,
-				"censored_trials": int(censored.sum()),
-				"mean_lifetime": float(lifetimes.mean()),
-				"median_lifetime": median,
-				"p10_lifetime": p10,
-				"p01_lifetime": p01,
-				"theoretical_bound": bound,
-				"adversarial_survival_bound": adversarial_bound,
-				"p01_over_n": p01 / n,
-				"p01_over_n2": p01 / (n**2),
-				"median_over_n2": median / (n**2),
-				"adversarial_over_n": adversarial_bound / n,
-			}
-		)
-
-	return pd.DataFrame(rows)
-
+    return apply_rounds(
+        initial_credit=initial_credit,
+        threshold=threshold,
+        rounds=all_default_rounds(rounds, max_principal),
+    )

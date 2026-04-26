@@ -1,6 +1,6 @@
 # Delegated Underwriting Lifetime
 
-> We derive a deterministic lifetime bound for the system in [**Unsecured Lending via Delegated Underwriting](https://writing.divine.inc/delegated-underwriting/),** using only the write-up’s aggregate-credit accounting identity
+> We derive a deterministic lifetime bound for the system in [Unsecured Lending via Delegated Underwriting](https://writing.divine.inc/delegated-underwriting/), using only the write-up’s aggregate-credit accounting identity
 
 Let
 
